@@ -1,0 +1,7 @@
+[
+    { "area": "general", "usuario": "admin", "password": "admin123" },
+    { "area": "administrativa", "usuario": "aadmin", "password": "abc123" },
+    { "area": "tecnica", "usuario": "tecnico1", "password": "tec456" },
+    { "area": "comercial", "usuario": "comercial1", "password": "com789" },
+    { "area": "proyectos", "usuario": "proy1", "password": "proy321" }
+]
