@@ -1,0 +1,21 @@
+{
+    "general": [
+        { "nombre": "Acta_Constitutiva.pdf", "tipo": "pdf" },
+        { "nombre": "Organigrama.pdf", "tipo": "pdf" }
+    ],
+    "administrativa": [
+        { "nombre": "Presupuesto_2026.xlsx", "tipo": "excel" },
+        { "nombre": "Politicas_Internas.pdf", "tipo": "pdf" }
+    ],
+    "tecnica": [
+        { "nombre": "Plano_Red_Hidraulica.pdf", "tipo": "pdf" },
+        { "nombre": "Mantenimiento_Pozos.xlsx", "tipo": "excel" }
+    ],
+    "comercial": [
+        { "nombre": "Reporte_Cobranza.xlsx", "tipo": "excel" },
+        { "nombre": "Tarifas_2026.pdf", "tipo": "pdf" }
+    ],
+    "proyectos": [
+        { "nombre": "Proyecto_Ampliacion_Sur.pdf", "tipo": "pdf" }
+    ]
+}
