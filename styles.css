@@ -40,7 +40,7 @@ h2{
     margin: auto;
 }
 
-header{
+header-principal{
     	background-color:rgba(121,32,52,1);
 }
 
@@ -180,17 +180,16 @@ footer .container{
 }
 
 @media(min-width: 720px){
-
-    header{
+    header-principal{
         position: fixed;
         width: 100%;
     }
-    header .container{
+    header-principal .container{
         flex-direction: row;
         justify-content: space-between;
     }
 
-    header nav{
+    header-principal nav{
         flex-direction: row;
         padding-bottom: 0;
         padding-right: 15px;
