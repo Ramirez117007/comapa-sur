@@ -322,3 +322,71 @@ footer .container{
     margin-top: 10px;
     min-height: 20px;
 }
+
+.header-archivos{
+    background-color: rgba(121,32,52,1);
+    padding: 20px 0;
+}
+
+.header-archivos .container{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.header-archivos h2{
+    color: white;
+    margin: 0;
+}
+
+.header-archivos button{
+    padding: 8px 16px;
+    background-color: white;
+    color: rgba(121,32,52,1);
+    border: none;
+    border-radius: 5px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.contenedor-archivos{
+    max-width: 1000px;
+    margin: 40px auto;
+    padding: 0 20px;
+}
+
+.grid-archivos{
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 20px;
+}
+
+.tarjeta-archivo{
+    background-color: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+}
+
+.nombre-archivo{
+    font-size: 0.95em;
+    word-break: break-word;
+    margin-bottom: 10px;
+}
+
+.tipo-archivo{
+    display: inline-block;
+    background-color: rgba(121,32,52,0.1);
+    color: rgba(121,32,52,1);
+    padding: 3px 10px;
+    border-radius: 4px;
+    font-size: 0.75em;
+    font-weight: bold;
+}
+
+.sin-archivos{
+    text-align: center;
+    color: #777;
+}
