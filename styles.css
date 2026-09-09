@@ -40,11 +40,11 @@ h2{
     margin: auto;
 }
 
-header-principal{
+.header-principal{
     	background-color:rgba(121,32,52,1);
 }
 
-header .img-logo{
+.header-principal .img-logo{
     background-image: url(unnamed.jpg);
     background-size: cover;
     background-position: center center;
@@ -53,13 +53,13 @@ header .img-logo{
 
 }
 
-header .container{
+.header-principal .container{
     display: flex;
     flex-direction: column;
     align-items: center;
 }
 
-header nav{
+.header-principal nav{
     display: flex;
     flex-direction: column;
     text-align: center;
@@ -105,7 +105,7 @@ header nav{
     background-color: white;
 }
 
-header a {
+.header-principal a {
     font-size: 1.1em;
     padding: 10px 30px;
     color: white;
@@ -116,7 +116,7 @@ header a {
     font-weight: bold;
 }
 
-header a:hover{
+.header-principal a:hover{
     color: blue;
     background-color: white;
 }
@@ -180,16 +180,16 @@ footer .container{
 }
 
 @media(min-width: 720px){
-    header-principal{
+    .header-principal{
         position: fixed;
         width: 100%;
     }
-    header-principal .container{
+    .header-principal .container{
         flex-direction: row;
         justify-content: space-between;
     }
 
-    header-principal nav{
+    .header-principal nav{
         flex-direction: row;
         padding-bottom: 0;
         padding-right: 15px;
