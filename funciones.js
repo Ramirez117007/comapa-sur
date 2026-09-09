@@ -49,3 +49,49 @@ if (formulario) {
             });
     });
 }
+
+
+// Solo corre este bloque si estamos en archivos.html
+const contenedorArchivos = document.getElementById('listaArchivos');
+
+if (contenedorArchivos) {
+
+    // 1. Revisa la libretita (sessionStorage) ANTES de mostrar nada
+    const areaGuardada = sessionStorage.getItem('areaAutenticada');
+
+    if (!areaGuardada) {
+        // Nadie inició sesión: fuera de aquí, de regreso al inicio
+        window.location.href = 'index.html';
+    } else {
+        // 2. Muestra el nombre del área en el título
+        document.getElementById('tituloArea').textContent = nombresArea[areaGuardada] || areaGuardada;
+
+        // 3. Trae la lista de archivos y filtra solo los de esta área
+        fetch('archivos.json')
+            .then(respuesta => respuesta.json())
+            .then(todosLosArchivos => {
+                const archivosDelArea = todosLosArchivos[areaGuardada] || [];
+
+                if (archivosDelArea.length === 0) {
+                    document.getElementById('sinArchivos').style.display = 'block';
+                    return;
+                }
+
+                archivosDelArea.forEach(archivo => {
+                    const tarjeta = document.createElement('div');
+                    tarjeta.className = 'tarjeta-archivo';
+                    tarjeta.innerHTML = `
+                        <p class="nombre-archivo">${archivo.nombre}</p>
+                        <span class="tipo-archivo">${archivo.tipo.toUpperCase()}</span>
+                    `;
+                    contenedorArchivos.appendChild(tarjeta);
+                });
+            });
+
+        // 4. Botón de cerrar sesión
+        document.getElementById('btnSalir').addEventListener('click', function () {
+            sessionStorage.removeItem('areaAutenticada');
+            window.location.href = 'index.html';
+        });
+    }
+}
