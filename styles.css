@@ -253,3 +253,72 @@ footer .container{
     }
 
 }
+
+.login-container{
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(121,32,52,0.1);
+}
+
+.login-card{
+    background-color: white;
+    padding: 40px;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    width: 90%;
+    max-width: 350px;
+    text-align: center;
+}
+
+.login-card h2{
+    color: rgba(121,32,52,1);
+    margin-bottom: 5px;
+}
+
+.login-area{
+    font-size: 1em;
+    color: #333;
+    margin-bottom: 20px;
+    text-transform: capitalize;
+}
+
+.login-card label{
+    display: block;
+    text-align: left;
+    font-size: 0.9em;
+    margin-top: 15px;
+    margin-bottom: 5px;
+}
+
+.login-card input{
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 1em;
+}
+
+.login-card button{
+    width: 100%;
+    margin-top: 25px;
+    padding: 12px;
+    background-color: rgba(121,32,52,1);
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.login-card button:hover{
+    background-color: rgba(90,24,40,1);
+}
+
+.mensaje-error{
+    color: red;
+    font-size: 0.9em;
+    margin-top: 10px;
+    min-height: 20px;
+}
