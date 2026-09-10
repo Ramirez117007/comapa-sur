@@ -90,7 +90,8 @@ h2{
 }
 
 
-.menu-horizontal li:hover .menu-vertical{
+.menu-horizontal li:hover .menu-vertical,
+.menu-horizontal li.activo .menu-vertical{
     display: block;
 }
 

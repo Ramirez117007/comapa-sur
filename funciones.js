@@ -95,3 +95,23 @@ if (contenedorArchivos) {
         });
     }
 }
+
+// Solo corre si estamos en index.html (donde existe el submenú de Gerencias)
+const menuVertical = document.querySelector('.menu-vertical');
+
+if (menuVertical) {
+    const liGerencias = menuVertical.closest('li');
+    const linkGerencias = liGerencias.querySelector(':scope > a');
+
+    linkGerencias.addEventListener('click', function (evento) {
+        evento.preventDefault(); // el href="#" no debe saltar ni recargar nada
+        liGerencias.classList.toggle('activo');
+    });
+
+    // Si das clic en cualquier otra parte de la página, se cierra el submenú
+    document.addEventListener('click', function (evento) {
+        if (!liGerencias.contains(evento.target)) {
+            liGerencias.classList.remove('activo');
+        }
+    });
+}
