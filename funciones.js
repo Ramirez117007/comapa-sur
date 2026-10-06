@@ -76,15 +76,41 @@ if (contenedorArchivos) {
                     document.getElementById('sinArchivos').style.display = 'block';
                     return;
                 }
+                function abrirModalArchivo(archivo) {
+                    document.getElementById('modalNombreArchivo').textContent = archivo.nombre;
+                    document.getElementById('modalTipoArchivo').textContent = archivo.tipo.toUpperCase();
+                    document.getElementById('modalMensaje').textContent =
+                        `Vista previa simulada. En un sistema real, aquí se mostraría el contenido de "${archivo.nombre}".`;
+                    document.getElementById('modalArchivo').style.display = 'flex';
+                }
 
                 archivosDelArea.forEach(archivo => {
                     const tarjeta = document.createElement('div');
                     tarjeta.className = 'tarjeta-archivo';
+                    tarjeta.setAttribute('tabindex', '0'); // para poder llegar con Tab, igual que con Gerencias
                     tarjeta.innerHTML = `
-                        <p class="nombre-archivo">${archivo.nombre}</p>
-                        <span class="tipo-archivo">${archivo.tipo.toUpperCase()}</span>
+                    <p class="nombre-archivo">${archivo.nombre}</p>
+                    <span class="tipo-archivo">${archivo.tipo.toUpperCase()}</span>
                     `;
+
+                    tarjeta.addEventListener('click', () => abrirModalArchivo(archivo));
+                    tarjeta.addEventListener('keydown', (evento) => {
+                        if (evento.key === 'Enter') abrirModalArchivo(archivo);
+                    });
+
                     contenedorArchivos.appendChild(tarjeta);
+                });
+
+                // Cerrar el modal con el botón
+                document.getElementById('btnCerrarModal').addEventListener('click', () => {
+                    document.getElementById('modalArchivo').style.display = 'none';
+                });
+
+                // Cerrar el modal si dan clic fuera de la tarjeta blanca (en el fondo oscuro)
+                document.getElementById('modalArchivo').addEventListener('click', (evento) => {
+                    if (evento.target.id === 'modalArchivo') {
+                        evento.currentTarget.style.display = 'none';
+                    }
                 });
             });
 
