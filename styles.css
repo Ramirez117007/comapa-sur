@@ -453,3 +453,36 @@ html{
 #objetivo{
     scroll-margin-top: 90px;
 }
+
+.modal-contenido{
+    max-width: 700px;
+}
+
+.iframe-pdf{
+    width: 100%;
+    height: 450px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+}
+
+.btn-descargar{
+    display: inline-block;
+    margin-top: 15px;
+    padding: 10px 20px;
+    background-color: rgba(121,32,52,1);
+    color: white;
+    text-decoration: none;
+    border-radius: 5px;
+    font-weight: bold;
+}
+
+.btn-descargar:hover{
+    background-color: rgba(90,24,40,1);
+}
+
+.link-pestana-nueva{
+    display: inline-block;
+    margin-top: 10px;
+    font-size: 0.85em;
+    color: rgba(121,32,52,1);
+}

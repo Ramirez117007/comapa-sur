@@ -1,9 +1,50 @@
 # servidor.ps1
 # Servidor local simple para el proyecto COMAPA Sur.
 # Sirve todos los archivos de esta misma carpeta y abre el navegador automaticamente.
+# Ademas, genera "archivos.json" en automatico escaneando la carpeta documentos/,
+# para que agregar un archivo nuevo no requiera tocar ningun codigo.
 
 $puerto = 5500
 $carpeta = $PSScriptRoot   # la carpeta donde vive este mismo script
+
+function Generar-ArchivosJson {
+    $raizDocumentos = Join-Path $carpeta "documentos"
+    $areasJson = @()
+
+    if (Test-Path $raizDocumentos) {
+        $carpetasArea = Get-ChildItem -Path $raizDocumentos -Directory | Sort-Object Name
+
+        foreach ($carpetaArea in $carpetasArea) {
+            $area = $carpetaArea.Name
+            $archivosJson = @()
+
+            $archivos = Get-ChildItem -Path $carpetaArea.FullName -File | Sort-Object Name
+
+            foreach ($archivo in $archivos) {
+                $extension = $archivo.Extension.ToLower()
+                $tipo = switch ($extension) {
+                    ".pdf"  { "pdf" }
+                    ".xlsx" { "excel" }
+                    ".xls"  { "excel" }
+                    ".doc"  { "word" }
+                    ".docx" { "word" }
+                    default { "archivo" }
+                }
+
+                # Escapa comillas dobles por si algun nombre de archivo las trajera
+                $nombreEscapado = $archivo.Name -replace '"', '\"'
+                $rutaEscapada = "documentos/$area/$nombreEscapado"
+
+                $archivosJson += "{ `"nombre`": `"$nombreEscapado`", `"tipo`": `"$tipo`", `"ruta`": `"$rutaEscapada`" }"
+            }
+
+            $listaTexto = "[" + ($archivosJson -join ",") + "]"
+            $areasJson += "`"$area`": $listaTexto"
+        }
+    }
+
+    return "{" + ($areasJson -join ",") + "}"
+}
 
 $listener = New-Object System.Net.HttpListener
 $listener.Prefixes.Add("http://localhost:$puerto/")
@@ -19,6 +60,7 @@ try {
 }
 
 Write-Host "Servidor COMAPA Sur corriendo en http://localhost:$puerto/"
+Write-Host "La lista de archivos se genera en automatico desde la carpeta documentos/"
 Write-Host "Para detenerlo, cierra esta ventana o presiona Ctrl+C."
 Write-Host ""
 
@@ -31,6 +73,18 @@ while ($listener.IsListening) {
 
     $rutaSolicitada = $request.Url.LocalPath.TrimStart('/')
     if ($rutaSolicitada -eq "") { $rutaSolicitada = "index.html" }
+
+    if ($rutaSolicitada -eq "archivos.json") {
+        # En vez de leer un archivo fijo, lo generamos en vivo
+        $json = Generar-ArchivosJson
+        $bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
+
+        $response.ContentType = "application/json; charset=utf-8"
+        $response.ContentLength64 = $bytes.Length
+        $response.OutputStream.Write($bytes, 0, $bytes.Length)
+        $response.OutputStream.Close()
+        continue
+    }
 
     $rutaCompleta = Join-Path $carpeta $rutaSolicitada
 
@@ -45,6 +99,8 @@ while ($listener.IsListening) {
             ".jpg"  { $response.ContentType = "image/jpeg" }
             ".jpeg" { $response.ContentType = "image/jpeg" }
             ".png"  { $response.ContentType = "image/png" }
+            ".pdf"  { $response.ContentType = "application/pdf" }
+            ".xlsx" { $response.ContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }
             default { $response.ContentType = "application/octet-stream" }
         }
 

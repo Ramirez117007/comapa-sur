@@ -1,21 +1,21 @@
 {
     "general": [
-        { "nombre": "Acta_Constitutiva.pdf", "tipo": "pdf" },
-        { "nombre": "Organigrama.pdf", "tipo": "pdf" }
+        { "nombre": "Acta_Constitutiva.pdf", "tipo": "pdf", "ruta": "documentos/general/Acta_Constitutiva.pdf" },
+        { "nombre": "Organigrama.pdf", "tipo": "pdf", "ruta": "documentos/general/Organigrama.pdf" }
     ],
     "administrativa": [
-        { "nombre": "Presupuesto_2026.xlsx", "tipo": "excel" },
-        { "nombre": "Politicas_Internas.pdf", "tipo": "pdf" }
+        { "nombre": "Presupuesto_2026.xlsx", "tipo": "excel", "ruta": "documentos/administrativa/Presupuesto_2026.xlsx" },
+        { "nombre": "Politicas_Internas.pdf", "tipo": "pdf", "ruta": "documentos/administrativa/Politicas_Internas.pdf" }
     ],
     "tecnica": [
-        { "nombre": "Plano_Red_Hidraulica.pdf", "tipo": "pdf" },
-        { "nombre": "Mantenimiento_Pozos.xlsx", "tipo": "excel" }
+        { "nombre": "Plano_Red_Hidraulica.pdf", "tipo": "pdf", "ruta": "documentos/tecnica/Plano_Red_Hidraulica.pdf" },
+        { "nombre": "Mantenimiento_Pozos.xlsx", "tipo": "excel", "ruta": "documentos/tecnica/Mantenimiento_Pozos.xlsx" }
     ],
     "comercial": [
-        { "nombre": "Reporte_Cobranza.xlsx", "tipo": "excel" },
-        { "nombre": "Tarifas_2026.pdf", "tipo": "pdf" }
+        { "nombre": "Reporte_Cobranza.xlsx", "tipo": "excel", "ruta": "documentos/comercial/Reporte_Cobranza.xlsx" },
+        { "nombre": "Tarifas_2026.pdf", "tipo": "pdf", "ruta": "documentos/comercial/Tarifas_2026.pdf" }
     ],
     "proyectos": [
-        { "nombre": "Proyecto_Ampliacion_Sur.pdf", "tipo": "pdf" }
+        { "nombre": "Proyecto_Ampliacion_Sur.pdf", "tipo": "pdf", "ruta": "documentos/proyectos/Proyecto_Ampliacion_Sur.pdf" }
     ]
 }

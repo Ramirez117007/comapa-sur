@@ -79,8 +79,23 @@ if (contenedorArchivos) {
                 function abrirModalArchivo(archivo) {
                     document.getElementById('modalNombreArchivo').textContent = archivo.nombre;
                     document.getElementById('modalTipoArchivo').textContent = archivo.tipo.toUpperCase();
-                    document.getElementById('modalMensaje').textContent =
-                        `Vista previa simulada. En un sistema real, aquí se mostraría el contenido de "${archivo.nombre}".`;
+
+                    const contenedorPrevia = document.getElementById('modalVistaPrevia');
+
+                    if (archivo.tipo === 'pdf') {
+                        contenedorPrevia.innerHTML = `
+        <iframe src="${archivo.ruta}" class="iframe-pdf" title="Vista previa de ${archivo.nombre}"></iframe>
+        <a href="${archivo.ruta}" target="_blank" class="link-pestana-nueva">Abrir en una pestaña nueva</a>
+    `;
+                    } else {
+                        // Excel no se puede previsualizar dentro del navegador sin librerías extra,
+                        // así que ofrecemos descargarlo en su lugar
+                        contenedorPrevia.innerHTML = `
+            <p>Este tipo de archivo no se puede previsualizar directo en el navegador.</p>
+            <a href="${archivo.ruta}" download class="btn-descargar">Descargar ${archivo.nombre}</a>
+        `;
+                    }
+
                     document.getElementById('modalArchivo').style.display = 'flex';
                 }
 
