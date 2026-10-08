@@ -1,7 +1,27 @@
 [
-    { "area": "general", "usuario": "admin", "password": "admin123" },
-    { "area": "administrativa", "usuario": "aadmin", "password": "abc123" },
-    { "area": "tecnica", "usuario": "tecnico1", "password": "tec456" },
-    { "area": "comercial", "usuario": "comercial1", "password": "com789" },
-    { "area": "proyectos", "usuario": "proy1", "password": "proy321" }
+    {
+        "area":  "general",
+        "usuario":  "admin",
+        "hash":  "pbkdf2$100000$E4CYhcKAy2IzBwHz/epIgg==$4M8LnBxeIG2qZQCMEgklzXeG92EYzmaTijLAeoui7dQ="
+    },
+    {
+        "area":  "administrativa",
+        "usuario":  "aadmin",
+        "hash":  "pbkdf2$100000$q+tADHu0xr6cbsBN1SGh2g==$CA3AVPEwRYGyibF26UoVsWnMMjZSBMYUCicuOm6E+SQ="
+    },
+    {
+        "area":  "tecnica",
+        "usuario":  "tecnico1",
+        "hash":  "pbkdf2$100000$LBArtTkVstsleo4I3OJOPA==$1KUONgokjPFDyowF4SovbwfcCYHO7wGdpfqEblgNUI0="
+    },
+    {
+        "area":  "comercial",
+        "usuario":  "comercial1",
+        "hash":  "pbkdf2$100000$CzC4Wk3poztTP0glv7Cw6Q==$KCvVGUQafAhXzoi7PbDJKBH9ZmG0MBn+YgIorKLMmvE="
+    },
+    {
+        "area":  "proyectos",
+        "usuario":  "proy1",
+        "hash":  "pbkdf2$100000$VazDudKUb3RicGwbb++6ng==$TBnpkUIGRppnMya2ZKd6wITqfNd0WJoxX1qzY84ab2g="
+    }
 ]

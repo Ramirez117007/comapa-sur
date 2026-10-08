@@ -68,6 +68,46 @@ function Nuevo-Token {
     return (($bytes | ForEach-Object { $_.ToString("x2") }) -join "")
 }
 
+# ---------- Contrasenas cifradas ----------
+# Formato guardado en usuarios.json (campo "hash"):
+#   pbkdf2$<iteraciones>$<sal en base64>$<hash en base64>
+# Se generan con usuarios.ps1. Nunca se guarda la contrasena original.
+
+function Calcular-Hash($password, [byte[]]$sal, $iteraciones) {
+    $pbkdf2 = New-Object System.Security.Cryptography.Rfc2898DeriveBytes($password, $sal, $iteraciones)
+    $bytes = $pbkdf2.GetBytes(32)
+    $pbkdf2.Dispose()
+    return $bytes
+}
+
+# Compara dos arreglos de bytes sin detenerse en la primera diferencia
+function Comparar-Bytes([byte[]]$a, [byte[]]$b) {
+    if ($a.Length -ne $b.Length) { return $false }
+    $dif = 0
+    for ($i = 0; $i -lt $a.Length; $i++) {
+        $dif = $dif -bor ($a[$i] -bxor $b[$i])
+    }
+    return ($dif -eq 0)
+}
+
+function Verificar-Password($password, $guardado) {
+    if ($password -eq $null -or $guardado -eq $null) { return $false }
+
+    $partes = ([string]$guardado).Split('$')
+    if ($partes.Count -ne 4 -or $partes[0] -ne 'pbkdf2') { return $false }
+
+    try {
+        $iteraciones = [int]$partes[1]
+        $sal = [Convert]::FromBase64String($partes[2])
+        $esperado = [Convert]::FromBase64String($partes[3])
+    } catch {
+        return $false
+    }
+
+    $calculado = Calcular-Hash ([string]$password) $sal $iteraciones
+    return (Comparar-Bytes $calculado $esperado)
+}
+
 function Listar-ArchivosArea($area) {
     $items = @()
     $carpetaArea = Join-Path $raizDocumentos $area
@@ -115,8 +155,8 @@ function Procesar-Login($request, $response) {
 
     $encontrado = $null
     foreach ($u in $usuarios) {
-        if ($u.usuario -ceq $datos.usuario -and $u.password -ceq $datos.password -and $u.area -ceq $datos.area) {
-            $encontrado = $u
+        if ($u.usuario -ceq $datos.usuario -and $u.area -ceq $datos.area) {
+            if (Verificar-Password $datos.password $u.hash) { $encontrado = $u }
             break
         }
     }
