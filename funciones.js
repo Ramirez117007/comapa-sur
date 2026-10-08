@@ -1,8 +1,12 @@
-// 1. Lee el parámetro "area" de la URL (ej: login.html?area=tecnica)
+// =====================================================
+// Datos comunes
+// =====================================================
+
+// Lee el parámetro "area" de la URL (ej: login.html?area=tecnica)
 const params = new URLSearchParams(window.location.search);
 const areaSolicitada = params.get('area');
 
-// 2. Nombres bonitos para mostrar en pantalla
+// Nombres bonitos para mostrar en pantalla
 const nombresArea = {
     general: "Gerencia General",
     administrativa: "Gerencia Administrativa",
@@ -11,12 +15,19 @@ const nombresArea = {
     proyectos: "Gerencia de Proyectos Estratégicos"
 };
 
+// Convierte "documentos/tecnica/Mi archivo #1.pdf" en una URL segura
+function urlSegura(ruta) {
+    return ruta.split('/').map(encodeURIComponent).join('/');
+}
+
+// =====================================================
+// login.html
+// =====================================================
 const elementoArea = document.getElementById('nombreArea');
 if (elementoArea) {
     elementoArea.textContent = nombresArea[areaSolicitada] || "Área no reconocida";
 }
 
-// 3. Cuando envían el formulario
 const formulario = document.getElementById('formLogin');
 const mensajeError = document.getElementById('mensajeError');
 
@@ -27,117 +38,119 @@ if (formulario) {
         const usuario = document.getElementById('usuario').value.trim();
         const password = document.getElementById('password').value;
 
-        fetch('usuarios.json')
-            .then(respuesta => respuesta.json())
-            .then(usuarios => {
-                const encontrado = usuarios.find(u =>
-                    u.usuario === usuario &&
-                    u.password === password &&
-                    u.area === areaSolicitada
-                );
-
-                if (encontrado) {
-                    sessionStorage.setItem('areaAutenticada', areaSolicitada);
+        // El servidor valida usuario, contraseña y área, y crea la sesión (cookie)
+        fetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ usuario: usuario, password: password, area: areaSolicitada })
+        })
+            .then(respuesta => {
+                if (respuesta.ok) {
                     window.location.href = 'archivos.html';
                 } else {
                     mensajeError.textContent = "Usuario, contraseña o área incorrectos.";
                 }
             })
             .catch(error => {
-                mensajeError.textContent = "Error al validar. Intenta de nuevo.";
+                mensajeError.textContent = "No se pudo conectar con el servidor. ¿Abriste iniciar.bat?";
                 console.error(error);
             });
     });
 }
 
-
-// Solo corre este bloque si estamos en archivos.html
+// =====================================================
+// archivos.html
+// =====================================================
 const contenedorArchivos = document.getElementById('listaArchivos');
 
 if (contenedorArchivos) {
 
-    // 1. Revisa la libretita (sessionStorage) ANTES de mostrar nada
-    const areaGuardada = sessionStorage.getItem('areaAutenticada');
+    function abrirModalArchivo(archivo) {
+        document.getElementById('modalNombreArchivo').textContent = archivo.nombre;
+        document.getElementById('modalTipoArchivo').textContent = archivo.tipo.toUpperCase();
 
-    if (!areaGuardada) {
-        // Nadie inició sesión: fuera de aquí, de regreso al inicio
-        window.location.href = 'index.html';
-    } else {
-        // 2. Muestra el nombre del área en el título
-        document.getElementById('tituloArea').textContent = nombresArea[areaGuardada] || areaGuardada;
+        const contenedorPrevia = document.getElementById('modalVistaPrevia');
+        const url = urlSegura(archivo.ruta);
 
-        // 3. Trae la lista de archivos y filtra solo los de esta área
-        fetch('archivos.json')
-            .then(respuesta => respuesta.json())
-            .then(todosLosArchivos => {
-                const archivosDelArea = todosLosArchivos[areaGuardada] || [];
+        if (archivo.tipo === 'pdf') {
+            contenedorPrevia.innerHTML = `
+                <iframe src="${url}" class="iframe-pdf" title="Vista previa de ${archivo.nombre}"></iframe>
+                <a href="${url}" target="_blank" class="link-pestana-nueva">Abrir en una pestaña nueva</a>
+            `;
+        } else {
+            contenedorPrevia.innerHTML = `
+                <p>Este tipo de archivo no se puede previsualizar directo en el navegador.</p>
+                <a href="${url}" download class="btn-descargar">Descargar ${archivo.nombre}</a>
+            `;
+        }
 
-                if (archivosDelArea.length === 0) {
-                    document.getElementById('sinArchivos').style.display = 'block';
-                    return;
-                }
-                function abrirModalArchivo(archivo) {
-                    document.getElementById('modalNombreArchivo').textContent = archivo.nombre;
-                    document.getElementById('modalTipoArchivo').textContent = archivo.tipo.toUpperCase();
+        document.getElementById('modalArchivo').style.display = 'flex';
+    }
 
-                    const contenedorPrevia = document.getElementById('modalVistaPrevia');
+    function cerrarModalArchivo() {
+        document.getElementById('modalArchivo').style.display = 'none';
+        document.getElementById('modalVistaPrevia').innerHTML = '';
+    }
 
-                    if (archivo.tipo === 'pdf') {
-                        contenedorPrevia.innerHTML = `
-        <iframe src="${archivo.ruta}" class="iframe-pdf" title="Vista previa de ${archivo.nombre}"></iframe>
-        <a href="${archivo.ruta}" target="_blank" class="link-pestana-nueva">Abrir en una pestaña nueva</a>
-    `;
-                    } else {
-                        // Excel no se puede previsualizar dentro del navegador sin librerías extra,
-                        // así que ofrecemos descargarlo en su lugar
-                        contenedorPrevia.innerHTML = `
-            <p>Este tipo de archivo no se puede previsualizar directo en el navegador.</p>
-            <a href="${archivo.ruta}" download class="btn-descargar">Descargar ${archivo.nombre}</a>
-        `;
-                    }
+    // El servidor decide quién eres: si no hay sesión válida responde 401
+    fetch('/api/archivos')
+        .then(respuesta => {
+            if (respuesta.status === 401) {
+                window.location.href = 'index.html';
+                return null;
+            }
+            return respuesta.json();
+        })
+        .then(datos => {
+            if (!datos) return;
 
-                    document.getElementById('modalArchivo').style.display = 'flex';
-                }
+            document.getElementById('tituloArea').textContent = nombresArea[datos.area] || datos.area;
 
-                archivosDelArea.forEach(archivo => {
-                    const tarjeta = document.createElement('div');
-                    tarjeta.className = 'tarjeta-archivo';
-                    tarjeta.setAttribute('tabindex', '0'); // para poder llegar con Tab, igual que con Gerencias
-                    tarjeta.innerHTML = `
+            if (datos.archivos.length === 0) {
+                document.getElementById('sinArchivos').style.display = 'block';
+                return;
+            }
+
+            datos.archivos.forEach(archivo => {
+                const tarjeta = document.createElement('div');
+                tarjeta.className = 'tarjeta-archivo';
+                tarjeta.setAttribute('tabindex', '0'); // para poder llegar con Tab
+                tarjeta.innerHTML = `
                     <p class="nombre-archivo">${archivo.nombre}</p>
                     <span class="tipo-archivo">${archivo.tipo.toUpperCase()}</span>
-                    `;
+                `;
 
-                    tarjeta.addEventListener('click', () => abrirModalArchivo(archivo));
-                    tarjeta.addEventListener('keydown', (evento) => {
-                        if (evento.key === 'Enter') abrirModalArchivo(archivo);
-                    });
-
-                    contenedorArchivos.appendChild(tarjeta);
+                tarjeta.addEventListener('click', () => abrirModalArchivo(archivo));
+                tarjeta.addEventListener('keydown', (evento) => {
+                    if (evento.key === 'Enter') abrirModalArchivo(archivo);
                 });
 
-                // Cerrar el modal con el botón
-                document.getElementById('btnCerrarModal').addEventListener('click', () => {
-                    document.getElementById('modalArchivo').style.display = 'none';
-                });
-
-                // Cerrar el modal si dan clic fuera de la tarjeta blanca (en el fondo oscuro)
-                document.getElementById('modalArchivo').addEventListener('click', (evento) => {
-                    if (evento.target.id === 'modalArchivo') {
-                        evento.currentTarget.style.display = 'none';
-                    }
-                });
+                contenedorArchivos.appendChild(tarjeta);
             });
-
-        // 4. Botón de cerrar sesión
-        document.getElementById('btnSalir').addEventListener('click', function () {
-            sessionStorage.removeItem('areaAutenticada');
-            window.location.href = 'index.html';
+        })
+        .catch(error => {
+            console.error(error);
+            document.getElementById('tituloArea').textContent = "Error de conexión";
         });
-    }
+
+    // Cerrar el modal con el botón
+    document.getElementById('btnCerrarModal').addEventListener('click', cerrarModalArchivo);
+
+    // Cerrar el modal si dan clic fuera de la tarjeta blanca
+    document.getElementById('modalArchivo').addEventListener('click', (evento) => {
+        if (evento.target.id === 'modalArchivo') cerrarModalArchivo();
+    });
+
+    // Cerrar sesión: el servidor borra la sesión y la cookie
+    document.getElementById('btnSalir').addEventListener('click', function () {
+        fetch('/api/logout', { method: 'POST' })
+            .finally(() => { window.location.href = 'index.html'; });
+    });
 }
 
-// Solo corre si estamos en index.html (donde existe el submenú de Gerencias)
+// =====================================================
+// index.html: submenú de Gerencias (clic/teclado además de hover)
+// =====================================================
 const menuVertical = document.querySelector('.menu-vertical');
 
 if (menuVertical) {
