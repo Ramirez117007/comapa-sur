@@ -111,7 +111,6 @@ if (contenedorArchivos) {
             const contenedorPestanas = document.getElementById('pestanas');
             const aviso = document.getElementById('sinArchivos');
             let filtroActual = null; // null = "Todos"
-            const botones = [];
 
             // Dibuja las tarjetas según la pestaña elegida
             function dibujarArchivos() {
@@ -144,38 +143,40 @@ if (contenedorArchivos) {
                 });
             }
 
-            // Marca la pestaña activa y vuelve a dibujar las tarjetas
+            // Cambia el filtro y vuelve a dibujar las tarjetas
             function activarPestana(valor) {
                 filtroActual = valor;
-                botones.forEach(b => {
-                    const activa = b.valor === valor;
-                    b.elemento.classList.toggle('activa', activa);
-                    b.elemento.setAttribute('aria-selected', activa ? 'true' : 'false');
-                });
                 dibujarArchivos();
             }
 
-            // Las pestañas solo aparecen si el área tiene subcarpetas
+            // El selector solo aparece si el área tiene subcarpetas
             if (carpetas.length > 0) {
-                const opciones = [{ etiqueta: 'Todos', valor: null, cantidad: todos.length }]
-                    .concat(carpetas.map(c => ({
-                        etiqueta: c,
-                        valor: c,
-                        cantidad: todos.filter(a => a.grupo === c).length
-                    })));
+                const etiqueta = document.createElement('label');
+                etiqueta.setAttribute('for', 'selectorCarpeta');
+                etiqueta.textContent = 'Carpeta:';
 
-                opciones.forEach(opcion => {
-                    const boton = document.createElement('button');
-                    boton.type = 'button';
-                    boton.className = 'pestana';
-                    boton.setAttribute('role', 'tab');
-                    boton.textContent = `${opcion.etiqueta} (${opcion.cantidad})`;
-                    boton.addEventListener('click', () => activarPestana(opcion.valor));
+                const selector = document.createElement('select');
+                selector.id = 'selectorCarpeta';
+                selector.className = 'selector-carpeta';
 
-                    contenedorPestanas.appendChild(boton);
-                    botones.push({ valor: opcion.valor, elemento: boton });
+                const opcionTodos = document.createElement('option');
+                opcionTodos.value = '';
+                opcionTodos.textContent = `Todos (${todos.length})`;
+                selector.appendChild(opcionTodos);
+
+                carpetas.forEach(c => {
+                    const opcion = document.createElement('option');
+                    opcion.value = c;
+                    opcion.textContent = `${c} (${todos.filter(a => a.grupo === c).length})`;
+                    selector.appendChild(opcion);
                 });
 
+                selector.addEventListener('change', () => {
+                    activarPestana(selector.value === '' ? null : selector.value);
+                });
+
+                contenedorPestanas.appendChild(etiqueta);
+                contenedorPestanas.appendChild(selector);
                 contenedorPestanas.style.display = 'flex';
             }
 

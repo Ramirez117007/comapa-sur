@@ -487,30 +487,30 @@ html{
     color: rgba(121,32,52,1);
 }
 
-.pestanas{
+.filtro-carpeta{
     display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-bottom: 25px;
-    border-bottom: 2px solid rgba(121,32,52,0.15);
-    padding-bottom: 10px;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 30px;
 }
 
-.pestana{
-    padding: 8px 16px;
+.filtro-carpeta label{
+    font-weight: bold;
+    color: rgba(121,32,52,1);
+}
+
+.selector-carpeta{
+    padding: 8px 14px;
+    border: 1px solid rgba(121,32,52,0.5);
+    border-radius: 6px;
     background-color: white;
     color: rgba(121,32,52,1);
-    border: 1px solid rgba(121,32,52,0.4);
-    border-radius: 20px;
+    font-size: 1em;
     font-weight: bold;
     cursor: pointer;
 }
 
-.pestana:hover{
-    background-color: rgba(121,32,52,0.08);
-}
-
-.pestana.activa{
-    background-color: rgba(121,32,52,1);
-    color: white;
+.selector-carpeta:focus{
+    outline: 2px solid rgba(121,32,52,0.4);
 }
