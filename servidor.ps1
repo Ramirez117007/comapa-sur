@@ -113,7 +113,9 @@ function Listar-ArchivosArea($area) {
     $carpetaArea = Join-Path $raizDocumentos $area
 
     if (Test-Path $carpetaArea -PathType Container) {
-        $archivos = Get-ChildItem -Path $carpetaArea -File | Sort-Object Name
+        $prefijo = (Get-Item $carpetaArea).FullName.TrimEnd('\') + '\'
+        $archivos = Get-ChildItem -Path $carpetaArea -File -Recurse | Sort-Object FullName
+
         foreach ($archivo in $archivos) {
             $tipo = switch ($archivo.Extension.ToLower()) {
                 ".pdf"  { "pdf" }
@@ -123,9 +125,33 @@ function Listar-ArchivosArea($area) {
                 ".docx" { "word" }
                 default { "archivo" }
             }
+
+            # Ruta dentro del area, por ejemplo "Sindicato\Acta.pdf" o solo "Acta.pdf"
+            $relativa = $archivo.FullName.Substring($prefijo.Length)
+
+            # El "grupo" es la subcarpeta de primer nivel (vacio si el archivo esta suelto en el area)
+            $grupo = ""
+            if ($relativa.Contains('\')) { $grupo = $relativa.Split('\')[0] }
+
+            $rutaWeb = "documentos/$area/" + ($relativa -replace '\\', '/')
+
             $nombre = Escapar-Json $archivo.Name
-            $ruta = Escapar-Json "documentos/$area/$($archivo.Name)"
-            $items += "{ `"nombre`": `"$nombre`", `"tipo`": `"$tipo`", `"ruta`": `"$ruta`" }"
+            $grupoJson = Escapar-Json $grupo
+            $ruta = Escapar-Json $rutaWeb
+            $items += "{ `"nombre`": `"$nombre`", `"tipo`": `"$tipo`", `"grupo`": `"$grupoJson`", `"ruta`": `"$ruta`" }"
+        }
+    }
+    return "[" + ($items -join ",") + "]"
+}
+
+function Listar-Subcarpetas($area) {
+    $items = @()
+    $carpetaArea = Join-Path $raizDocumentos $area
+
+    if (Test-Path $carpetaArea -PathType Container) {
+        $carpetas = Get-ChildItem -Path $carpetaArea -Directory | Sort-Object Name
+        foreach ($c in $carpetas) {
+            $items += ('"' + (Escapar-Json $c.Name) + '"')
         }
     }
     return "[" + ($items -join ",") + "]"
@@ -238,7 +264,8 @@ while ($listener.IsListening) {
             }
             $area = Escapar-Json $sesion.area
             $lista = Listar-ArchivosArea $sesion.area
-            Enviar-Texto $response 200 "{ `"area`": `"$area`", `"archivos`": $lista }" $json
+            $subcarpetas = Listar-Subcarpetas $sesion.area
+            Enviar-Texto $response 200 "{ `"area`": `"$area`", `"subcarpetas`": $subcarpetas, `"archivos`": $lista }" $json
             continue
         }
 

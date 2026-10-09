@@ -486,3 +486,31 @@ html{
     font-size: 0.85em;
     color: rgba(121,32,52,1);
 }
+
+.pestanas{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 25px;
+    border-bottom: 2px solid rgba(121,32,52,0.15);
+    padding-bottom: 10px;
+}
+
+.pestana{
+    padding: 8px 16px;
+    background-color: white;
+    color: rgba(121,32,52,1);
+    border: 1px solid rgba(121,32,52,0.4);
+    border-radius: 20px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.pestana:hover{
+    background-color: rgba(121,32,52,0.08);
+}
+
+.pestana.activa{
+    background-color: rgba(121,32,52,1);
+    color: white;
+}

@@ -106,27 +106,80 @@ if (contenedorArchivos) {
 
             document.getElementById('tituloArea').textContent = nombresArea[datos.area] || datos.area;
 
-            if (datos.archivos.length === 0) {
-                document.getElementById('sinArchivos').style.display = 'block';
-                return;
+            const todos = datos.archivos;
+            const carpetas = datos.subcarpetas || [];
+            const contenedorPestanas = document.getElementById('pestanas');
+            const aviso = document.getElementById('sinArchivos');
+            let filtroActual = null; // null = "Todos"
+            const botones = [];
+
+            // Dibuja las tarjetas según la pestaña elegida
+            function dibujarArchivos() {
+                contenedorArchivos.innerHTML = '';
+
+                const visibles = filtroActual === null
+                    ? todos
+                    : todos.filter(a => a.grupo === filtroActual);
+
+                aviso.textContent = filtroActual === null
+                    ? 'No hay archivos disponibles en esta área.'
+                    : 'No hay archivos en esta carpeta.';
+                aviso.style.display = visibles.length === 0 ? 'block' : 'none';
+
+                visibles.forEach(archivo => {
+                    const tarjeta = document.createElement('div');
+                    tarjeta.className = 'tarjeta-archivo';
+                    tarjeta.setAttribute('tabindex', '0'); // para poder llegar con Tab
+                    tarjeta.innerHTML = `
+                        <p class="nombre-archivo">${archivo.nombre}</p>
+                        <span class="tipo-archivo">${archivo.tipo.toUpperCase()}</span>
+                    `;
+
+                    tarjeta.addEventListener('click', () => abrirModalArchivo(archivo));
+                    tarjeta.addEventListener('keydown', (evento) => {
+                        if (evento.key === 'Enter') abrirModalArchivo(archivo);
+                    });
+
+                    contenedorArchivos.appendChild(tarjeta);
+                });
             }
 
-            datos.archivos.forEach(archivo => {
-                const tarjeta = document.createElement('div');
-                tarjeta.className = 'tarjeta-archivo';
-                tarjeta.setAttribute('tabindex', '0'); // para poder llegar con Tab
-                tarjeta.innerHTML = `
-                    <p class="nombre-archivo">${archivo.nombre}</p>
-                    <span class="tipo-archivo">${archivo.tipo.toUpperCase()}</span>
-                `;
+            // Marca la pestaña activa y vuelve a dibujar las tarjetas
+            function activarPestana(valor) {
+                filtroActual = valor;
+                botones.forEach(b => {
+                    const activa = b.valor === valor;
+                    b.elemento.classList.toggle('activa', activa);
+                    b.elemento.setAttribute('aria-selected', activa ? 'true' : 'false');
+                });
+                dibujarArchivos();
+            }
 
-                tarjeta.addEventListener('click', () => abrirModalArchivo(archivo));
-                tarjeta.addEventListener('keydown', (evento) => {
-                    if (evento.key === 'Enter') abrirModalArchivo(archivo);
+            // Las pestañas solo aparecen si el área tiene subcarpetas
+            if (carpetas.length > 0) {
+                const opciones = [{ etiqueta: 'Todos', valor: null, cantidad: todos.length }]
+                    .concat(carpetas.map(c => ({
+                        etiqueta: c,
+                        valor: c,
+                        cantidad: todos.filter(a => a.grupo === c).length
+                    })));
+
+                opciones.forEach(opcion => {
+                    const boton = document.createElement('button');
+                    boton.type = 'button';
+                    boton.className = 'pestana';
+                    boton.setAttribute('role', 'tab');
+                    boton.textContent = `${opcion.etiqueta} (${opcion.cantidad})`;
+                    boton.addEventListener('click', () => activarPestana(opcion.valor));
+
+                    contenedorPestanas.appendChild(boton);
+                    botones.push({ valor: opcion.valor, elemento: boton });
                 });
 
-                contenedorArchivos.appendChild(tarjeta);
-            });
+                contenedorPestanas.style.display = 'flex';
+            }
+
+            activarPestana(null); // empieza en "Todos"
         })
         .catch(error => {
             console.error(error);
