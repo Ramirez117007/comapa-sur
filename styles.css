@@ -514,3 +514,39 @@ html{
 .selector-carpeta:focus{
     outline: 2px solid rgba(121,32,52,0.4);
 }
+
+.buscador {
+    width: 100%;
+    max-width: 320px;
+    padding: 8px 12px;
+    margin-bottom: 12px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 1rem;
+}
+
+.buscador {
+    width: 100%;
+    max-width: 320px;
+    padding: 10px 14px;
+    border: 1px solid #7b2035;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-family: inherit;
+    color: #333;
+}
+
+.buscador:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(123, 32, 53, 0.2);
+}
+
+
+.barra-herramientas {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 20px;
+}

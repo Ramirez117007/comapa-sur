@@ -15,6 +15,14 @@ const nombresArea = {
     proyectos: "Gerencia de Proyectos Estratégicos"
 };
 
+// Quita acentos, pasa a minúsculas y trata _ y - como espacios
+function normalizar(texto) {
+    return texto
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[_-]/g, ' ')
+        .toLowerCase();
+}
 // Convierte "documentos/tecnica/Mi archivo #1.pdf" en una URL segura
 function urlSegura(ruta) {
     return ruta.split('/').map(encodeURIComponent).join('/');
@@ -110,19 +118,27 @@ if (contenedorArchivos) {
             const carpetas = datos.subcarpetas || [];
             const contenedorPestanas = document.getElementById('pestanas');
             const aviso = document.getElementById('sinArchivos');
+            let textoBusqueda = '';
             let filtroActual = null; // null = "Todos"
 
             // Dibuja las tarjetas según la pestaña elegida
             function dibujarArchivos() {
                 contenedorArchivos.innerHTML = '';
-
-                const visibles = filtroActual === null
+                const porCarpeta = filtroActual === null
                     ? todos
                     : todos.filter(a => a.grupo === filtroActual);
 
-                aviso.textContent = filtroActual === null
-                    ? 'No hay archivos disponibles en esta área.'
-                    : 'No hay archivos en esta carpeta.';
+                const visibles = textoBusqueda === ''
+                    ? porCarpeta
+                    : porCarpeta.filter(a => normalizar(a.nombre).includes(textoBusqueda));
+
+                if (textoBusqueda !== '') {
+                    aviso.textContent = 'No se encontraron archivos con esa búsqueda.';
+                } else {
+                    aviso.textContent = filtroActual === null
+                        ? 'No hay archivos disponibles en esta área.'
+                        : 'No hay archivos en esta carpeta.';
+                }
                 aviso.style.display = visibles.length === 0 ? 'block' : 'none';
 
                 visibles.forEach(archivo => {
@@ -179,8 +195,14 @@ if (contenedorArchivos) {
                 contenedorPestanas.appendChild(selector);
                 contenedorPestanas.style.display = 'flex';
             }
+            const buscador = document.getElementById('buscador');
+            buscador.addEventListener('input', () => {
+                textoBusqueda = normalizar(buscador.value.trim());
+                dibujarArchivos();
+            });
 
             activarPestana(null); // empieza en "Todos"
+            
         })
         .catch(error => {
             console.error(error);
