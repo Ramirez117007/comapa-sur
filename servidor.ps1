@@ -170,6 +170,11 @@ function Procesar-Login($request, $response) {
         Enviar-Texto $response 400 '{"ok":false}' $json
         return
     }
+        $minutos = Minutos-Bloqueo-Restantes $datos.usuario
+    if ($minutos -gt 0) {
+        Enviar-Texto $response 429 ('{"ok":false,"bloqueado":true,"minutos":' + $minutos + '}') $json
+        return
+    }
 
     try {
         $rutaUsuarios = Join-Path $carpeta "usuarios.json"
@@ -187,11 +192,16 @@ function Procesar-Login($request, $response) {
         }
     }
 
-    if ($encontrado -eq $null) {
+        if ($encontrado -eq $null) {
+        Registrar-Fallo $datos.usuario
         Start-Sleep -Milliseconds 500   # frena un poco los intentos repetidos
         Enviar-Texto $response 401 '{"ok":false}' $json
         return
     }
+
+        Limpiar-Fallos $datos.usuario
+
+    $token = Nuevo-Token
 
     $token = Nuevo-Token
     $sesiones[$token] = @{
@@ -233,6 +243,47 @@ Write-Host ""
 Start-Process "http://localhost:$puerto/index.html"
 
 $json = "application/json; charset=utf-8"
+
+# ---------- Bloqueo por intentos fallidos ----------
+$maxIntentos = 5
+$minutosBloqueo = 5
+$intentosFallidos = @{}   # clave: usuario en minúsculas
+
+# Devuelve 0 si puede intentar, o los minutos que le faltan si está bloqueado
+function Minutos-Bloqueo-Restantes($usuario) {
+    if ([string]::IsNullOrWhiteSpace($usuario)) { return 0 }
+    $clave = $usuario.Trim().ToLower()
+    if (-not $intentosFallidos.ContainsKey($clave)) { return 0 }
+
+    $hasta = $intentosFallidos[$clave].bloqueadoHasta
+    if ($hasta -eq $null) { return 0 }
+
+    $restante = ($hasta - (Get-Date)).TotalMinutes
+    if ($restante -le 0) {
+        $intentosFallidos.Remove($clave)   # el bloqueo ya venció
+        return 0
+    }
+    return [math]::Ceiling($restante)
+}
+
+# Suma un fallo; al llegar al máximo, activa el bloqueo
+function Registrar-Fallo($usuario) {
+    if ([string]::IsNullOrWhiteSpace($usuario)) { return }
+    $clave = $usuario.Trim().ToLower()
+    if (-not $intentosFallidos.ContainsKey($clave)) {
+        $intentosFallidos[$clave] = @{ cuenta = 0; bloqueadoHasta = $null }
+    }
+    $intentosFallidos[$clave].cuenta++
+    if ($intentosFallidos[$clave].cuenta -ge $maxIntentos) {
+        $intentosFallidos[$clave].bloqueadoHasta = (Get-Date).AddMinutes($minutosBloqueo)
+    }
+}
+
+# Login correcto: se borra el historial de fallos de ese usuario
+function Limpiar-Fallos($usuario) {
+    if ([string]::IsNullOrWhiteSpace($usuario)) { return }
+    $intentosFallidos.Remove($usuario.Trim().ToLower())
+}
 
 while ($listener.IsListening) {
     $context = $listener.GetContext()

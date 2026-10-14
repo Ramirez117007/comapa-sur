@@ -52,9 +52,14 @@ if (formulario) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ usuario: usuario, password: password, area: areaSolicitada })
         })
-            .then(respuesta => {
+                        .then(respuesta => {
                 if (respuesta.ok) {
                     window.location.href = 'archivos.html';
+                } else if (respuesta.status === 429) {
+                    return respuesta.json().then(d => {
+                        mensajeError.textContent =
+                            `Demasiados intentos fallidos. Intenta de nuevo en ${d.minutos} minuto(s).`;
+                    });
                 } else {
                     mensajeError.textContent = "Usuario, contraseña o área incorrectos.";
                 }
