@@ -1,8 +1,8 @@
 # servidor.ps1
-# Servidor local para el proyecto COMAPA Sur, con sesiones del lado del servidor.
+# Servidor local para COMAPA Sur, con sesiones del lado del servidor.
 #
 # - El login se valida AQUI (usuarios.json nunca se envia al navegador).
-# - Al iniciar sesion, el servidor entrega una cookie con un identificador aleatorio.
+# - Al iniciar sesion el servidor entrega una cookie con un identificador aleatorio.
 # - Los archivos de documentos/<area>/ solo se entregan si la sesion pertenece a esa area.
 # - La lista de archivos se genera en vivo escaneando documentos/<area>/.
 
@@ -170,8 +170,10 @@ function Procesar-Login($request, $response) {
         Enviar-Texto $response 400 '{"ok":false}' $json
         return
     }
-        $minutos = Minutos-Bloqueo-Restantes $datos.usuario
+
+    $minutos = Minutos-Bloqueo-Restantes $datos.usuario
     if ($minutos -gt 0) {
+        Registrar-Evento "LOGIN_BLOQUEADO" $datos.usuario $datos.area "intento durante bloqueo"
         Enviar-Texto $response 429 ('{"ok":false,"bloqueado":true,"minutos":' + $minutos + '}') $json
         return
     }
@@ -192,20 +194,26 @@ function Procesar-Login($request, $response) {
         }
     }
 
-        if ($encontrado -eq $null) {
+    if ($encontrado -eq $null) {
         Registrar-Fallo $datos.usuario
-        Start-Sleep -Milliseconds 500   # frena un poco los intentos repetidos
+        Registrar-Evento "LOGIN_FALLO" $datos.usuario $datos.area "usuario o contrasena incorrectos"
+        if ((Minutos-Bloqueo-Restantes $datos.usuario) -gt 0) {
+            Registrar-Evento "BLOQUEO" $datos.usuario $datos.area "cuenta bloqueada por intentos fallidos"
+        }
+        Start-Sleep -Milliseconds 500
         Enviar-Texto $response 401 '{"ok":false}' $json
         return
     }
 
-        Limpiar-Fallos $datos.usuario
+    Limpiar-Fallos $datos.usuario
+    Registrar-Evento "LOGIN_OK" $encontrado.usuario $encontrado.area ""
 
     $token = Nuevo-Token
 
     $token = Nuevo-Token
     $sesiones[$token] = @{
         area   = $encontrado.area
+        usuario = $encontrado.usuario
         expira = (Get-Date).AddHours($duracionSesionHoras)
     }
 
@@ -285,6 +293,30 @@ function Limpiar-Fallos($usuario) {
     $intentosFallidos.Remove($usuario.Trim().ToLower())
 }
 
+# ---------- Bitácora de accesos ----------
+$archivoBitacora = Join-Path $carpeta "bitacora.log"
+
+# Quita saltos de línea y caracteres raros, y recorta el largo
+function Limpiar-Texto-Log($texto, $max = 80) {
+    if ($texto -eq $null -or "$texto" -eq "") { return "-" }
+    $t = [string]$texto
+    $t = $t -replace '[\x00-\x1F\x7F]', ' '
+    if ($t.Length -gt $max) { $t = $t.Substring(0, $max) }
+    return $t
+}
+
+function Registrar-Evento($evento, $usuario, $area, $detalle) {
+    try {
+        $linea = "{0} | {1} | {2} | {3} | {4}" -f `
+            (Get-Date -Format "yyyy-MM-dd HH:mm:ss"), `
+            $evento, `
+            (Limpiar-Texto-Log $usuario 60), `
+            (Limpiar-Texto-Log $area 40), `
+            (Limpiar-Texto-Log $detalle 200)
+        [System.IO.File]::AppendAllText($archivoBitacora, $linea + "`r`n", (New-Object System.Text.UTF8Encoding($false)))
+    } catch { }
+}
+
 while ($listener.IsListening) {
     $context = $listener.GetContext()
     $request = $context.Request
@@ -298,7 +330,7 @@ while ($listener.IsListening) {
         # ---------- API ----------
         if ($rutaSolicitada -eq "api/login" -and $metodo -eq "POST") {
             Procesar-Login $request $response
-            continue
+            continue 
         }
 
         if ($rutaSolicitada -eq "api/logout" -and $metodo -eq "POST") {
@@ -354,8 +386,9 @@ while ($listener.IsListening) {
                 continue
             }
 
-            $areaArchivo = $relativa.Split('\')[0]
+           $areaArchivo = $relativa.Split('\')[0]
             if ($areaArchivo -ne $sesion.area) {
+                Registrar-Evento "DOC_DENEGADO" $sesion.usuario $sesion.area $rutaSolicitada
                 Enviar-Texto $response 403 "Acceso denegado" "text/plain; charset=utf-8"
                 continue
             }
@@ -367,7 +400,10 @@ while ($listener.IsListening) {
             }
         }
 
-        if (Test-Path $rutaCompleta -PathType Leaf) {
+       if (Test-Path $rutaCompleta -PathType Leaf) {
+            if ($esDocumento) {
+                Registrar-Evento "DOC_ABIERTO" $sesion.usuario $sesion.area $relativa
+            }
             $bytes = [System.IO.File]::ReadAllBytes($rutaCompleta)
 
             if ($tiposContenido.ContainsKey($extension)) {

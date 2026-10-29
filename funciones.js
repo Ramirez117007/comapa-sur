@@ -6,7 +6,7 @@
 const params = new URLSearchParams(window.location.search);
 const areaSolicitada = params.get('area');
 
-// Nombres bonitos para mostrar en pantalla
+// Nombres de las áreas para mostrar en la interfaz
 const nombresArea = {
     general: "Gerencia General",
     administrativa: "Gerencia Administrativa",
