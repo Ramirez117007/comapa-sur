@@ -5,6 +5,7 @@
 # - Al iniciar sesion el servidor entrega una cookie con un identificador aleatorio.
 # - Los archivos de documentos/<area>/ solo se entregan si la sesion pertenece a esa area.
 # - La lista de archivos se genera en vivo escaneando documentos/<area>/.
+# - Word, Excel y PowerPoint se convierten a PDF (con Microsoft Office) para la vista previa.
 
 $puerto = 5500
 $carpeta = $PSScriptRoot
@@ -12,6 +13,11 @@ $carpetaBase = $carpeta.TrimEnd('\') + '\'
 $raizDocumentos = Join-Path $carpeta "documentos"
 $raizDocsConSlash = $raizDocumentos.TrimEnd('\') + '\'
 $duracionSesionHoras = 8
+
+# Carpeta donde se guardan los PDF generados para la vista previa (se crea sola).
+# No es publica: el servidor nunca entrega .pdf fuera de documentos/.
+$carpetaVistas = Join-Path $carpeta "cache_vistas"
+$segundosMaxConversion = 90
 
 # Sesiones activas en memoria: token -> @{ area; expira }
 $sesiones = @{}
@@ -28,7 +34,21 @@ $tiposContenido = @{
     ".svg"   = "image/svg+xml"
     ".ico"   = "image/x-icon"
     ".pdf"   = "application/pdf"
+    ".txt"   = "text/plain; charset=utf-8"
+    ".csv"   = "text/plain; charset=utf-8"
+    ".doc"   = "application/msword"
+    ".docx"  = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    ".xls"   = "application/vnd.ms-excel"
     ".xlsx"  = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    ".ppt"   = "application/vnd.ms-powerpoint"
+    ".pptx"  = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+}
+
+# Extensiones que se pueden convertir a PDF para la vista previa, y con que programa de Office
+$convertiblesOffice = @{
+    ".doc"  = "word";  ".docx" = "word";  ".rtf" = "word";  ".odt" = "word"
+    ".xls"  = "excel"; ".xlsx" = "excel"; ".ods" = "excel"
+    ".ppt"  = "powerpoint"; ".pptx" = "powerpoint"; ".odp" = "powerpoint"
 }
 
 # Fuera de documentos/ solo se sirven estos tipos (todo lo demas: .json, .ps1, .bat, etc. se bloquea)
@@ -119,10 +139,11 @@ function Listar-ArchivosArea($area) {
         foreach ($archivo in $archivos) {
             $tipo = switch ($archivo.Extension.ToLower()) {
                 ".pdf"  { "pdf" }
-                ".xlsx" { "excel" }
-                ".xls"  { "excel" }
-                ".doc"  { "word" }
-                ".docx" { "word" }
+                { $_ -in ".xls", ".xlsx", ".ods" }  { "excel" }
+                { $_ -in ".doc", ".docx", ".rtf", ".odt" } { "word" }
+                { $_ -in ".ppt", ".pptx", ".odp" }  { "powerpoint" }
+                { $_ -in ".jpg", ".jpeg", ".png", ".gif", ".webp" } { "imagen" }
+                { $_ -in ".txt", ".csv" }           { "texto" }
                 default { "archivo" }
             }
 
@@ -207,8 +228,6 @@ function Procesar-Login($request, $response) {
 
     Limpiar-Fallos $datos.usuario
     Registrar-Evento "LOGIN_OK" $encontrado.usuario $encontrado.area ""
-
-    $token = Nuevo-Token
 
     $token = Nuevo-Token
     $sesiones[$token] = @{
@@ -317,6 +336,177 @@ function Registrar-Evento($evento, $usuario, $area, $detalle) {
     } catch { }
 }
 
+# ---------- Vista previa de Word, Excel y PowerPoint ----------
+# El navegador solo sabe mostrar PDF, asi que el servidor convierte el archivo
+# a PDF usando Microsoft Office (instalado en esta computadora) y guarda el
+# resultado en cache_vistas/. La siguiente vez se entrega el PDF ya hecho,
+# salvo que el archivo original haya cambiado.
+
+# Se ejecuta en un proceso aparte (Start-Job) para poder cortarlo si Office se traba.
+$bloqueConversion = {
+    param($origen, $destino, $programa)
+
+    $ErrorActionPreference = "Stop"
+    $app = $null
+    $doc = $null
+    try {
+        switch ($programa) {
+            "word" {
+                $app = New-Object -ComObject Word.Application
+                $app.Visible = $false
+                $app.DisplayAlerts = 0
+                # (archivo, confirmar conversion, solo lectura, recientes, contrasena falsa)
+                # La contrasena falsa hace que un archivo protegido falle en vez de abrir un cuadro de dialogo.
+                $doc = $app.Documents.Open($origen, $false, $true, $false, "x-sin-clave")
+                $doc.ExportAsFixedFormat($destino, 17)   # 17 = PDF
+                $doc.Close($false)
+                if ($app.Documents.Count -eq 0) { $app.Quit() }
+            }
+            "excel" {
+                $app = New-Object -ComObject Excel.Application
+                $app.Visible = $false
+                $app.DisplayAlerts = $false
+                # (archivo, no actualizar vinculos, solo lectura, formato, contrasena falsa)
+                $doc = $app.Workbooks.Open($origen, 0, $true, 5, "x-sin-clave")
+                $doc.ExportAsFixedFormat(0, $destino)    # 0 = PDF
+                $doc.Close($false)
+                if ($app.Workbooks.Count -eq 0) { $app.Quit() }
+            }
+            "powerpoint" {
+                $app = New-Object -ComObject PowerPoint.Application
+                # (archivo, solo lectura, sin titulo, sin ventana)  -1 = verdadero, 0 = falso
+                $doc = $app.Presentations.Open($origen, -1, 0, 0)
+                $doc.SaveAs($destino, 32)                # 32 = PDF
+                $doc.Close()
+                # PowerPoint comparte una sola ventana: solo se cierra si nadie mas lo usa
+                if ($app.Presentations.Count -eq 0) { $app.Quit() }
+            }
+        }
+        return "ok"
+    } catch {
+        return "error: " + $_.Exception.Message
+    } finally {
+        foreach ($o in @($doc, $app)) {
+            if ($o -ne $null) { try { [void][System.Runtime.InteropServices.Marshal]::ReleaseComObject($o) } catch { } }
+        }
+        [GC]::Collect()
+        [GC]::WaitForPendingFinalizers()
+    }
+}
+
+# Devuelve la ruta del PDF listo, o $null si no se pudo convertir (en $script:errorVista queda el motivo)
+function Obtener-PdfVista($rutaOriginal, $programa) {
+    $script:errorVista = ""
+
+    if (-not (Test-Path -LiteralPath $carpetaVistas)) { New-Item -ItemType Directory -Path $carpetaVistas | Out-Null }
+
+    # Nombre del PDF: huella (SHA-256) de la ruta, para no repetir nombres entre carpetas
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    $huella = ($sha.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($rutaOriginal.ToLower())) |
+        ForEach-Object { $_.ToString("x2") }) -join ""
+    $sha.Dispose()
+    $pdf = Join-Path $carpetaVistas ($huella + ".pdf")
+
+    # Si ya existe y es mas nuevo que el original, se reutiliza
+    if (Test-Path -LiteralPath $pdf) {
+        if ((Get-Item -LiteralPath $pdf).LastWriteTime -ge (Get-Item -LiteralPath $rutaOriginal).LastWriteTime) { return $pdf }
+    }
+
+    $temporal = Join-Path $carpetaVistas ($huella + ".tmp.pdf")
+    if (Test-Path -LiteralPath $temporal) { Remove-Item -LiteralPath $temporal -Force }
+
+    $trabajo = Start-Job -ScriptBlock $bloqueConversion -ArgumentList $rutaOriginal, $temporal, $programa
+    $termino = Wait-Job $trabajo -Timeout $segundosMaxConversion
+
+    if ($termino -eq $null) {
+        Stop-Job $trabajo
+        Remove-Job $trabajo -Force
+        $script:errorVista = "la conversion tardo demasiado"
+        return $null
+    }
+
+    # Se toma solo la ultima linea que devolvio el proceso ("ok" o "error: ...")
+    $salida = @(Receive-Job $trabajo)
+    $resultado = ""
+    if ($salida.Count -gt 0) { $resultado = [string]$salida[-1] }
+    Remove-Job $trabajo -Force
+
+    if ($resultado -ne "ok" -or -not (Test-Path -LiteralPath $temporal)) {
+        if ($resultado -match "80040154|ProgID|clase no registrada|class not registered") {
+            $script:errorVista = "Microsoft Office no esta instalado en esta computadora"
+        } else {
+            $script:errorVista = $resultado
+        }
+        return $null
+    }
+
+    Move-Item -LiteralPath $temporal -Destination $pdf -Force
+    return $pdf
+}
+
+# Revisa que una ruta web ("documentos/<area>/...") exista y sea del area de la sesion.
+# Devuelve @{ codigo = 200 | 403 | 404; completa; relativa }
+function Resolver-Documento($rutaWeb, $sesion) {
+    $completa = [System.IO.Path]::GetFullPath((Join-Path $carpeta $rutaWeb))
+    if (-not $completa.StartsWith($raizDocsConSlash, [System.StringComparison]::OrdinalIgnoreCase)) {
+        return @{ codigo = 404 }
+    }
+    $relativa = $completa.Substring($raizDocsConSlash.Length)
+    if (-not $relativa.Contains('\') -or $relativa.Split('\')[0] -ne $sesion.area) {
+        return @{ codigo = 403; relativa = $relativa }
+    }
+    if (-not (Test-Path -LiteralPath $completa -PathType Leaf)) { return @{ codigo = 404 } }
+    return @{ codigo = 200; completa = $completa; relativa = $relativa }
+}
+
+function Procesar-Vista($request, $response) {
+    $response.Headers.Add("Cache-Control", "no-store")
+    $response.Headers.Add("X-Content-Type-Options", "nosniff")
+
+    $sesion = Obtener-Sesion $request
+    if ($sesion -eq $null) {
+        Enviar-Texto $response 401 '{"error":"no autorizado"}' $json
+        return
+    }
+
+    $rutaWeb = $request.QueryString["ruta"]
+    if ([string]::IsNullOrWhiteSpace($rutaWeb)) {
+        Enviar-Texto $response 400 '{"error":"falta la ruta"}' $json
+        return
+    }
+
+    $doc = Resolver-Documento $rutaWeb $sesion
+    if ($doc.codigo -eq 403) {
+        Registrar-Evento "DOC_DENEGADO" $sesion.usuario $sesion.area $rutaWeb
+        Enviar-Texto $response 403 '{"error":"acceso denegado"}' $json
+        return
+    }
+    if ($doc.codigo -ne 200) {
+        Enviar-Texto $response 404 '{"error":"archivo no encontrado"}' $json
+        return
+    }
+
+    $extension = [System.IO.Path]::GetExtension($doc.completa).ToLower()
+    if (-not $convertiblesOffice.ContainsKey($extension)) {
+        Enviar-Texto $response 415 '{"error":"este tipo de archivo no se convierte"}' $json
+        return
+    }
+
+    $pdf = Obtener-PdfVista $doc.completa $convertiblesOffice[$extension]
+    if ($pdf -eq $null) {
+        Registrar-Evento "VISTA_ERROR" $sesion.usuario $sesion.area ($doc.relativa + " - " + $script:errorVista)
+        Enviar-Texto $response 500 ('{"error":"' + (Escapar-Json (Limpiar-Texto-Log $script:errorVista 150)) + '"}') $json
+        return
+    }
+
+    Registrar-Evento "DOC_VISTA" $sesion.usuario $sesion.area $doc.relativa
+    $bytes = [System.IO.File]::ReadAllBytes($pdf)
+    $response.ContentType = "application/pdf"
+    $response.ContentLength64 = $bytes.Length
+    $response.OutputStream.Write($bytes, 0, $bytes.Length)
+    $response.OutputStream.Close()
+}
+
 while ($listener.IsListening) {
     $context = $listener.GetContext()
     $request = $context.Request
@@ -349,6 +539,11 @@ while ($listener.IsListening) {
             $lista = Listar-ArchivosArea $sesion.area
             $subcarpetas = Listar-Subcarpetas $sesion.area
             Enviar-Texto $response 200 "{ `"area`": `"$area`", `"subcarpetas`": $subcarpetas, `"archivos`": $lista }" $json
+            continue
+        }
+
+        if ($rutaSolicitada -eq "api/vista") {
+            Procesar-Vista $request $response
             continue
         }
 

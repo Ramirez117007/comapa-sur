@@ -78,32 +78,145 @@ const contenedorArchivos = document.getElementById('listaArchivos');
 
 if (contenedorArchivos) {
 
+    // Tipos que el servidor convierte a PDF con Microsoft Office
+    const tiposOffice = ['word', 'excel', 'powerpoint'];
+
+    // Cada vez que se abre un archivo sube este número; así, si el usuario
+    // cambia de archivo antes de que termine la conversión, se ignora la respuesta vieja.
+    let aperturaActual = 0;
+    let urlTemporal = null; // URL "blob:" del PDF convertido (se libera al cerrar)
+
+    // Crea un elemento con clase y texto sin usar innerHTML (evita inyectar HTML con el nombre del archivo)
+    function crear(etiqueta, clase, texto) {
+        const el = document.createElement(etiqueta);
+        if (clase) el.className = clase;
+        if (texto) el.textContent = texto;
+        return el;
+    }
+
+    // urlVista: lo que se muestra (el PDF). urlOriginal: el archivo que se descarga.
+    function mostrarVisorPdf(contenedor, urlVista, urlOriginal, nombre) {
+        const iframe = crear('iframe', 'iframe-pdf');
+        iframe.src = urlVista;
+        iframe.title = 'Vista previa de ' + nombre;
+
+        const pestana = crear('a', 'btn-secundario', 'Abrir en una pestaña nueva');
+        pestana.href = urlVista;
+        pestana.target = '_blank';
+
+        contenedor.replaceChildren(iframe, filaAcciones(pestana, botonDescargar(urlOriginal)));
+    }
+
+    function botonDescargar(url) {
+        const enlace = crear('a', 'btn-descargar', 'Descargar');
+        enlace.href = url;
+        enlace.setAttribute('download', '');
+        return enlace;
+    }
+
+    // Agrupa los botones en una fila con espacio entre ellos
+    function filaAcciones(...botones) {
+        const fila = crear('div', 'acciones-vista');
+        fila.append(...botones);
+        return fila;
+    }
+
     function abrirModalArchivo(archivo) {
+        const numero = ++aperturaActual;
+        liberarUrlTemporal();
+
         document.getElementById('modalNombreArchivo').textContent = archivo.nombre;
         document.getElementById('modalTipoArchivo').textContent = archivo.tipo.toUpperCase();
 
         const contenedorPrevia = document.getElementById('modalVistaPrevia');
         const url = urlSegura(archivo.ruta);
+        document.getElementById('modalArchivo').style.display = 'flex';
 
         if (archivo.tipo === 'pdf') {
-            contenedorPrevia.innerHTML = `
-                <iframe src="${url}" class="iframe-pdf" title="Vista previa de ${archivo.nombre}"></iframe>
-                <a href="${url}" target="_blank" class="link-pestana-nueva">Abrir en una pestaña nueva</a>
-            `;
-        } else {
-            contenedorPrevia.innerHTML = `
-                <p>Este tipo de archivo no se puede previsualizar directo en el navegador.</p>
-                <a href="${url}" download class="btn-descargar">Descargar ${archivo.nombre}</a>
-            `;
-        }
+            mostrarVisorPdf(contenedorPrevia, url, url, archivo.nombre);
 
-        document.getElementById('modalArchivo').style.display = 'flex';
+        } else if (archivo.tipo === 'imagen') {
+            const img = crear('img', 'vista-imagen');
+            img.src = url;
+            img.alt = archivo.nombre;
+            contenedorPrevia.replaceChildren(img, filaAcciones(botonDescargar(url)));
+
+        } else if (archivo.tipo === 'texto') {
+            contenedorPrevia.replaceChildren(crear('p', 'vista-cargando', 'Cargando...'));
+            fetch(url)
+                .then(r => r.ok ? r.text() : Promise.reject(r.status))
+                .then(texto => {
+                    if (numero !== aperturaActual) return;
+                    const pre = crear('pre', 'vista-texto');
+                    pre.textContent = texto; // textContent: se muestra tal cual, sin interpretar HTML
+                    contenedorPrevia.replaceChildren(pre, filaAcciones(botonDescargar(url)));
+                })
+                .catch(() => {
+                    if (numero !== aperturaActual) return;
+                    contenedorPrevia.replaceChildren(
+                        crear('p', 'vista-error', 'No se pudo leer el archivo.'),
+                        filaAcciones(botonDescargar(url)));
+                });
+
+        } else if (tiposOffice.includes(archivo.tipo)) {
+            // El servidor convierte el archivo a PDF. La primera vez tarda unos segundos;
+            // después se reutiliza el PDF guardado mientras el original no cambie.
+            const cargando = crear('div', 'vista-cargando');
+            cargando.append(crear('span', 'spinner'), crear('span', '', 'Generando vista previa...'));
+            contenedorPrevia.replaceChildren(cargando);
+
+            fetch('/api/vista?ruta=' + encodeURIComponent(archivo.ruta))
+                .then(respuesta => {
+                    if (respuesta.status === 401) { window.location.href = 'index.html'; return null; }
+                    if (!respuesta.ok) {
+                        return respuesta.json()
+                            .catch(() => ({}))
+                            .then(d => Promise.reject(d.error || 'error ' + respuesta.status));
+                    }
+                    return respuesta.blob();
+                })
+                .then(pdf => {
+                    if (!pdf || numero !== aperturaActual) return;
+                    urlTemporal = URL.createObjectURL(pdf);
+                    // Se ve el PDF convertido, pero se descarga el archivo original (.docx, .xlsx, .pptx)
+                    mostrarVisorPdf(contenedorPrevia, urlTemporal, url, archivo.nombre);
+                })
+                .catch(motivo => {
+                    if (numero !== aperturaActual) return;
+                    console.error(motivo);
+                    const mensaje = typeof motivo === 'string'
+                        ? 'No se pudo generar la vista previa (' + motivo + ').'
+                        : 'No se pudo generar la vista previa.';
+                    contenedorPrevia.replaceChildren(
+                        crear('p', 'vista-error', mensaje),
+                        filaAcciones(botonDescargar(url)));
+                });
+
+        } else {
+            contenedorPrevia.replaceChildren(
+                crear('p', '', 'Este tipo de archivo no se puede previsualizar en el navegador.'),
+                filaAcciones(botonDescargar(url)));
+        }
+    }
+
+    function liberarUrlTemporal() {
+        if (urlTemporal) {
+            URL.revokeObjectURL(urlTemporal);
+            urlTemporal = null;
+        }
     }
 
     function cerrarModalArchivo() {
+        aperturaActual++; // cancela cualquier conversión que siga en camino
         document.getElementById('modalArchivo').style.display = 'none';
-        document.getElementById('modalVistaPrevia').innerHTML = '';
+        document.getElementById('modalVistaPrevia').replaceChildren();
+        liberarUrlTemporal();
     }
+
+    // Cerrar el modal con la tecla Escape
+    document.addEventListener('keydown', (evento) => {
+        if (evento.key === 'Escape') cerrarModalArchivo();
+    });
 
     // El servidor decide quién eres: si no hay sesión válida responde 401
     fetch('/api/archivos')
@@ -150,10 +263,10 @@ if (contenedorArchivos) {
                     const tarjeta = document.createElement('div');
                     tarjeta.className = 'tarjeta-archivo';
                     tarjeta.setAttribute('tabindex', '0'); // para poder llegar con Tab
-                    tarjeta.innerHTML = `
-                        <p class="nombre-archivo">${archivo.nombre}</p>
-                        <span class="tipo-archivo">${archivo.tipo.toUpperCase()}</span>
-                    `;
+                    tarjeta.append(
+                        crear('p', 'nombre-archivo', archivo.nombre),
+                        crear('span', 'tipo-archivo', archivo.tipo.toUpperCase())
+                    );
 
                     tarjeta.addEventListener('click', () => abrirModalArchivo(archivo));
                     tarjeta.addEventListener('keydown', (evento) => {

@@ -20,16 +20,28 @@ Cada usuario pertenece a una sola gerencia.
 Solo el administrador crea y elimina cuentas, con `usuarios.bat`
 (ver, agregar, eliminar, cambiar contraseña, cifrar existentes).
 Las contraseñas se guardan cifradas (PBKDF2 con sal por usuario).
-`usuarios.json` no se incluye en el repositorio.
+`usuarios.json` no se incluye en el repositorio (tampoco `bitacora.log` ni `cache_vistas/`).
 
 ## Agregar documentos
 Copiar el archivo a `documentos/<gerencia>/` (o a una subcarpeta).
 No hace falta modificar código.
 
+## Vista previa de archivos
+- PDF: se muestra directo en el navegador.
+- Word, Excel y PowerPoint (.doc, .docx, .xls, .xlsx, .ppt, .pptx, .rtf, .odt, .ods, .odp):
+  el servidor los convierte a PDF con Microsoft Office y muestra ese PDF.
+  Requiere Office instalado en la computadora donde corre `servidor.ps1`.
+  La primera vez tarda unos segundos; el PDF se guarda en `cache_vistas/`
+  y se reutiliza mientras el archivo original no cambie.
+- Imágenes (.jpg, .png, .gif, .webp) y texto (.txt, .csv): se muestran directo.
+- Si no se puede generar la vista previa, se ofrece el botón de descarga.
+
 ## Seguridad
 - Sesión con cookie HttpOnly de 8 horas
 - El servidor valida la sesión y el área en cada archivo (401/403)
 - `usuarios.json` no es descargable
+- `cache_vistas/` tampoco se puede abrir desde el navegador; los PDF de vista previa
+  solo se entregan por `/api/vista`, que valida la sesión y el área
 - Solo funciona en local, sin internet público
 
 ## Estructura
